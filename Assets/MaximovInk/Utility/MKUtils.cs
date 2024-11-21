@@ -38,6 +38,24 @@ namespace MaximovInk
             f();
         }
 
+        public static void DestroyAllChildren(Transform target, bool immedaite)
+        {
+            if (!immedaite)
+            {
+                for (var i = target.childCount - 1; i >= 0; i--)
+                {
+                    UnityEngine.Object.Destroy(target.GetChild(i).gameObject);
+                }
+                return;
+            }
+
+            for (var i = target.childCount - 1; i >= 0; i--)
+            {
+                UnityEngine.Object.DestroyImmediate(target.GetChild(i).gameObject);
+            }
+
+        }
+
         public static void DestroyAllChildren(Transform target)
         {
             if (Application.isPlaying)
