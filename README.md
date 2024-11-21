@@ -3,6 +3,7 @@
 - Drag&Drop script
 - Realtime/Cached
 - Fine results
+- FPS control, for make some vibe
 
 First attempt to make pixel rotation script. Perfomance not good, but i will optimize it soon
 
