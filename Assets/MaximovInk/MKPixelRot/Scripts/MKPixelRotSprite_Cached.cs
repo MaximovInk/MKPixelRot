@@ -1,14 +1,9 @@
-﻿
-
-using System.Collections;
+﻿using System.Collections;
 using System.Threading;
 using UnityEngine;
 
-
 namespace MaximovInk
 {
-
-
     public partial class MKPixelRotSprite
     {
         [System.Serializable]
@@ -25,6 +20,8 @@ namespace MaximovInk
             public int SpriteSize;
         }
 
+
+        [Header("Cached info")]
         [SerializeField] private Sprite[] _sprites;
         [SerializeField] private Texture2D _rotationSheet;
 
@@ -43,12 +40,8 @@ namespace MaximovInk
             {
                 _cacheIsDirty = false;
 
-                _rotationSheet = new Texture2D(_cacheData.SheetWidth, _cacheData.SheetHeight);
+                _rotationSheet = MakeTexture(_cacheData.SheetWidth, _cacheData.SheetHeight);
                 _rotationSheet.SetPixels32(_cacheData.Output.Data);
-
-                _rotationSheet.alphaIsTransparency = _sprite.texture.alphaIsTransparency;
-                _rotationSheet.filterMode = _sprite.texture.filterMode;
-
                 _rotationSheet.Apply();
 
                 _sprites = new Sprite[_cacheData.SpriteCount];
@@ -57,12 +50,14 @@ namespace MaximovInk
                 {
                     var angle = _angleStep * i;
 
-                    _sprites[i] = Sprite.Create(
-                    _rotationSheet,
-                    new Rect(i * _cacheData.SpriteSize, 0, _cacheData.SpriteSize, _cacheData.SpriteSize),
-                    new Vector2(0.5f, 0.5f),
-                        _sprite.pixelsPerUnit);
-                    _sprites[i].name = $"Cached {angle.ToString()}deg";
+                    _sprites[i] = 
+                        MakeSprite(
+                            _rotationSheet, i * _cacheData.SpriteSize, 
+                            0,
+                            _cacheData.SpriteSize, 
+                            _cacheData.SpriteSize,
+                            $"{_sprite.name}_cached {angle.ToString()}deg"
+                            );
                 }
     
                 CachedRotate();
@@ -75,8 +70,6 @@ namespace MaximovInk
 
         private void GenerateRotationSheetThread()
         {
-            
-
             var size = _cacheData.SpriteSize;
             _previousStep = _angleStep;
             var textureData = _cacheData.Input;
@@ -149,14 +142,7 @@ namespace MaximovInk
         {
             if (_sprites == null) return;
 
-            var a = _angle;
-
-            if (a == 360)
-            {
-                a = 0;
-            }
-
-            var index = (int)(a / 360f * _sprites.Length);
+            var index = (int)(_angle / 360f * _sprites.Length);
 
             index = Mathf.Clamp(index, 0, _sprites.Length - 1);
 

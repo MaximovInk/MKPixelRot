@@ -1,13 +1,5 @@
 using UnityEngine;
-using System.Collections.Generic;
-
 using System;
-
-using System.Threading;
-
-
-
-
 
 namespace MaximovInk
 {
@@ -15,6 +7,9 @@ namespace MaximovInk
     [SerializeField]
     public partial class MKPixelRotSprite : MonoBehaviour
     {
+        public bool IsBusy() => _cacheThread != null && _cacheThread.IsAlive;
+        public float Angle => _angle;
+
         [SerializeField] private Sprite _sprite;
 
         [SerializeField] private float _fps = 12f;
@@ -27,6 +22,8 @@ namespace MaximovInk
         private Texture2D _finalTex;
         private Sprite _finalSprite;
 
+        public SpriteRenderer Renderer => _target;
+        [HideInInspector, SerializeField]
         private SpriteRenderer _target;
 
         private void Awake()
@@ -39,9 +36,9 @@ namespace MaximovInk
         private float _previousStep = 0;
         private float _fpsTimer = 0f;
 
-        private Thread _realtimeThread;
+        private bool _invokeRotate;
 
-        private void Update()
+        private void LateUpdate()
         {
             Validate();
 
@@ -75,15 +72,30 @@ namespace MaximovInk
 
             UpdateCached();
             UpdateRealtime();
+
+            if (_invokeRotate)
+            {
+                _invokeRotate = false;
+                Rotate();
+            }
         }
 
         private float CalculateAngle()
         {
-            return Mathf.Round(transform.rotation.eulerAngles.z / _angleStep) * _angleStep;
+            var value = Mathf.Round(transform.rotation.eulerAngles.z / _angleStep) * _angleStep; ;
+
+            while(value > 360)
+            {
+                value -= 360;
+            }
+
+            return value;
         }
 
         private bool CheckRotationChanged()
         {
+            if (_target == null) return false;
+
             if (_lastRotation != transform.rotation)
             {
                 _target.transform.position = transform.position;
@@ -96,8 +108,7 @@ namespace MaximovInk
             return false;
         }
 
-        [Header("Debug (do not changing)")]
-        [SerializeField] private float _angle;
+        private float _angle;
 
         public void Rotate()
         {
@@ -124,6 +135,7 @@ namespace MaximovInk
                 var renderer = new GameObject($"{gameObject.name}_PixelRot").AddComponent<SpriteRenderer>();
                 renderer.transform.SetParent(transform);
                 renderer.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                //renderer.gameObject.hideFlags = HideFlags.HideInHierarchy;
 
                 _target = renderer;
 
@@ -138,7 +150,7 @@ namespace MaximovInk
 
         private void OnValidate()
         {
-            Rotate();
+            _invokeRotate = true;
         }
 
         private MKTextureData GetRotate(MKTextureData textureData, int size, float angle)
@@ -162,6 +174,26 @@ namespace MaximovInk
                 skip = true;
             }
 
+            if (angle == 90)
+            {
+                MKTextureUtilites.Rotate90(textureData);
+                skip = true;
+            }
+            else if (angle == 180)
+            {
+                MKTextureUtilites.Rotate90(textureData);
+                MKTextureUtilites.Rotate90(textureData);
+                skip = true;
+            }
+            else if (angle == 270)
+            {
+                MKTextureUtilites.Rotate90(textureData);
+                MKTextureUtilites.Rotate90(textureData);
+                MKTextureUtilites.Rotate90(textureData);
+                skip = true;
+
+            }
+            
             if (!skip)
             {
                 textureData = MKTextureUtilites.Scale2x(textureData);
@@ -173,28 +205,9 @@ namespace MaximovInk
                 textureData = MKTextureUtilites.Scale2x(textureData);
                 scaledSize *= 2;
 
-                if (angle == 90)
-                {
-                    MKTextureUtilites.Rotate90(textureData);
-                }
-                else if (angle == 180)
-                {
-                    MKTextureUtilites.Rotate90(textureData);
-                    MKTextureUtilites.Rotate90(textureData);
-                }
-                else if (angle == 270)
-                {
-                    MKTextureUtilites.Rotate90(textureData);
-                    MKTextureUtilites.Rotate90(textureData);
-                    MKTextureUtilites.Rotate90(textureData);
-
-                }
-                else
-
-                    MKTextureUtilites.Rotate(textureData, angle);
+                MKTextureUtilites.Rotate(textureData, angle);
 
                 textureData = MKTextureUtilites.ScaleDown(textureData, originalSize, originalSize);
-
             }
 
             scaledSize = originalSize;
@@ -217,10 +230,27 @@ namespace MaximovInk
             }
         }
 
-        public bool IsBusy()
+        private Texture2D MakeTexture(int width, int height)
         {
-            return _cacheThread != null && _cacheThread.IsAlive;
+            var texture = new Texture2D(width, height);
 
+            texture.alphaIsTransparency = true;
+            texture.filterMode = FilterMode.Point;
+            //texture.wrapMode = TextureWrapMode.Mirror;
+
+            return texture;
+        }
+   
+        private Sprite MakeSprite(Texture2D texture, int x, int y, int w, int h, string name)
+        {
+            var sprite = Sprite.Create(
+                   texture,
+                   new Rect(x, y, w, h),
+                   new Vector2(0.5f, 0.5f),
+                       _sprite.pixelsPerUnit);
+            sprite.name = name;
+
+            return sprite;
         }
     }
 }

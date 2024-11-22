@@ -17,7 +17,7 @@ namespace MaximovInk
         private MKPixelRotRealtimeData _realtimeData;
 
         private bool _realtimeIsDirty;
-
+        private Thread _realtimeThread;
 
         private void RealtimeRotateThread(int size)
         {
@@ -30,6 +30,8 @@ namespace MaximovInk
 
         private void RealtimeRotate()
         {
+            if (_realtimeIsDirty) return;
+
             if (_realtimeThread == null || !_realtimeThread.IsAlive)
             {
                 _realtimeData.Input = MKTextureUtilites.GetSpriteDataForRot(_sprite, out var size);
@@ -46,16 +48,11 @@ namespace MaximovInk
             {
                 _realtimeIsDirty = false;
 
-                _finalTex = new Texture2D(_realtimeData.SpriteSize, _realtimeData.SpriteSize);
+                _finalTex = MakeTexture(_realtimeData.Output.Width, _realtimeData.Output.Height);
                 _finalTex.SetPixels32(_realtimeData.Output.Data);
-                _finalTex.alphaIsTransparency = _sprite.texture.alphaIsTransparency;
-                _finalTex.filterMode = _sprite.texture.filterMode;
-
                 _finalTex.Apply();
 
-                _finalSprite = Sprite.Create(_finalTex, new Rect(0, 0, _finalTex.width, _finalTex.height), new Vector2(0.5f, 0.5f), _sprite.pixelsPerUnit);
-
-                _finalSprite.name = $"Realtime: {_angle.ToString()}deg";
+                _finalSprite = MakeSprite(_finalTex, 0,0, _finalTex.width, _finalTex.height, $"{_sprite.name}_realtime {_angle}deg");
 
                 _target.sprite = _finalSprite;
 
