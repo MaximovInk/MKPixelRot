@@ -8,7 +8,7 @@
 First attempt to make pixel rotation script. Perfomance not good, but i will optimize it soon
 
 ## Some notes:
-- Better use cache, realtime perfomance is bad
+- Better use cache, for realtime algorithm is heavy
 - Script using rotSprite adoptation 
 - If you found mistake, please let me know
 - Pull requests are appreciated!
