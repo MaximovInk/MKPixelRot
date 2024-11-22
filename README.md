@@ -4,6 +4,7 @@
 - Realtime/Cached
 - Fine results
 - FPS control, for make some vibe
+- Any shaders URP/Buildin works as default SpriteRenderer
 
 First attempt to make pixel rotation script. Perfomance not good, but i will optimize it soon
 
