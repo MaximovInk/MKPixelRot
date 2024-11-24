@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Threading;
+﻿using System.Threading;
 using UnityEngine;
 
 namespace MaximovInk
@@ -12,6 +11,9 @@ namespace MaximovInk
             public int SheetWidth;
             public int SheetHeight;
 
+            public int SpriteCountX;
+            public int SpriteCountY;
+
             public MKTextureData Input;
             public MKTextureData Output;
 
@@ -19,7 +21,6 @@ namespace MaximovInk
 
             public int SpriteSize;
         }
-
 
         [Header("Cached info")]
         [SerializeField] private Sprite[] _sprites;
@@ -36,88 +37,122 @@ namespace MaximovInk
 
         private void UpdateCached()
         {
-            if (_cacheIsDirty)
+            if (!_cacheIsDirty) return;
+
+            _cacheIsDirty = false;
+
+            _rotationSheet = MakeTexture(_cacheData.SheetWidth, _cacheData.SheetHeight);
+            _rotationSheet.SetPixels32(_cacheData.Output.Data);
+            _rotationSheet.Apply();
+
+            _sprites = new Sprite[_cacheData.SpriteCount];
+
+            int i = 0;
+
+            for (int iy = 0; iy < _cacheData.SpriteCountY; iy++)
             {
-                _cacheIsDirty = false;
-
-                _rotationSheet = MakeTexture(_cacheData.SheetWidth, _cacheData.SheetHeight);
-                _rotationSheet.SetPixels32(_cacheData.Output.Data);
-                _rotationSheet.Apply();
-
-                _sprites = new Sprite[_cacheData.SpriteCount];
-                
-                for (var i = 0; i < _cacheData.SpriteCount; i++)
+                for (int ix = 0; ix < _cacheData.SpriteCountX; ix++)
                 {
-                    var angle = _angleStep * i;
+                    if (i >= _sprites.Length) break;
 
-                    _sprites[i] = 
+
+                    var t = i / ((float)_cacheData.SpriteCount) * 360f;
+                    var angle = CalculateAngle(t);
+
+                    _sprites[i] =
                         MakeSprite(
-                            _rotationSheet, i * _cacheData.SpriteSize, 
-                            0,
-                            _cacheData.SpriteSize, 
+                            _rotationSheet, ix * _cacheData.SpriteSize, 
+                            iy*_cacheData.SpriteSize,
                             _cacheData.SpriteSize,
-                            $"{_sprite.name}_cached {angle.ToString()}deg"
-                            );
+                            _cacheData.SpriteSize,
+                            $"{_sprite.name}_cached {angle.ToString()}deg",
+                            angle
+                        );
+
+
+                    i++;
                 }
-    
-                CachedRotate();
-
-                RepaintScene();
-         
-
             }
+
+            CachedRotate();
+
+            RepaintScene();
         }
+
+        private object _lockObject = new();
 
         private void GenerateRotationSheetThread()
         {
+
+
+            if (TrimSource)
+            {
+                _cacheData.Input = 
+                    MKTextureUtilites.Trim(_cacheData.Input);
+                _cacheData.SpriteSize = MKTextureUtilites.GetSize(
+                    _cacheData.Input.Width,
+                    _cacheData.Input.Height);
+
+                _cacheData.Input = 
+                    MKTextureUtilites.ResizeUpCanvas(_cacheData.Input, _cacheData.SpriteSize);
+            }
+
             var size = _cacheData.SpriteSize;
-            _previousStep = _angleStep;
             var textureData = _cacheData.Input;
             _cacheData.SpriteCount = (int)(360 / _angleStep);
 
-            _cacheData.SheetWidth = _cacheData.SpriteCount * size;
-            _cacheData.SheetHeight = size;
+            var xCount = Mathf.CeilToInt(Mathf.Sqrt(_cacheData.SpriteCount));
+            var yCount = Mathf.CeilToInt(_cacheData.SpriteCount / (float)xCount);
 
-            var rotationSheetData = new MKTextureData(_cacheData.SpriteCount * size, size);
-         
+            _cacheData.SpriteCountX = xCount;
+            _cacheData.SpriteCountY = yCount;
 
-            for (int i = 0; i < rotationSheetData.Length; i++)
+            var rotationSheetData = new MKTextureData(xCount * size, yCount * size);
+
+            _cacheData.SheetWidth = rotationSheetData.Width;
+            _cacheData.SheetHeight = rotationSheetData.Height;
+
+            for (var i = 0; i < rotationSheetData.Length; i++)
             {
                 rotationSheetData.Data[i] = Color.clear;
             }
 
+            int xCounter = 0;
+            int yCounter = 0;
+
             for (var i = 0; i < _cacheData.SpriteCount; i++)
             {
-                var angle = _angleStep * i;
+
+                var t = i / ((float)_cacheData.SpriteCount) * 360f;
+
+                var angle = CalculateAngle(t);
+
                 var texture1 = GetRotate(textureData, size, angle);
 
+                if (xCounter >= xCount)
+                {
+                    xCounter = 0;
+                    yCounter++;
+                }
+               
                 MKTextureUtilites.InsertToTexture(
                     rotationSheetData,
                     texture1,
-                    i * size,
-                    0,
-                    size,
-                    size,
-                    _cacheData.SheetWidth,
-                    _cacheData.SheetHeight
-                );
+                    xCounter * size,
+                    yCounter*size);
 
-                _cachingState = (i/(float)_cacheData.SpriteCount);
+                xCounter++;
+
+                _cachingState = (i / (float)_cacheData.SpriteCount);
             }
 
             _cacheData.Output = rotationSheetData;
             _cacheIsDirty = true;
         }
 
-        private IEnumerator ThisWillBeExecutedOnTheMainThread()
-        {
-            Debug.Log("This is executed from the main thread");
-            yield return null;
-        }
-
         public void GenerateRotationSheet()
         {
-            if (_cacheThread != null && _cacheThread.IsAlive)
+            if (_cacheThread is { IsAlive: true })
             {
                 _cacheThread.Abort();
                 _cacheThread = null;
@@ -128,7 +163,6 @@ namespace MaximovInk
                 Debug.LogError("Sprite is null!");
                 return;
             }
-
           
             _cachingState = 0;
             _cacheData.Input = MKTextureUtilites.GetSpriteDataForRot(_sprite, out var size);
@@ -152,6 +186,10 @@ namespace MaximovInk
             }
 
             _target.sprite = _sprites[index];
+
+
         }
+
+
     }
 }

@@ -1,36 +1,143 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using static Unity.VisualScripting.Member;
+using static UnityEngine.UI.Image;
 
 namespace MaximovInk
 {
     public static class MKTextureUtilites
     {
-        public static MKTextureData GetSpriteDataForRot(Sprite sprite, out int size)
+        public static MKTextureData Trim(MKTextureData textureData)
+        {
+            var minX = textureData.Width-1;
+            var minY = textureData.Height-1;
+            var maxX = 0;
+            var maxY = 0;
+
+
+            for (int ix = 0; ix < textureData.Width; ix++)
+            {
+                for (int iy = 0; iy < textureData.Height; iy++)
+                {
+                    var pixel = textureData.Get(ix, iy);
+
+                    if(pixel.a == 0) continue;
+
+                    minX = Math.Min(minX, ix);
+                    minY = Math.Min(minY, iy);
+
+                    maxX = Math.Max(maxX, ix);
+                    maxY = Math.Max(maxY, iy);
+                }
+            }
+
+            var sizeX = maxX - minX+1;
+            var sizeY = maxY - minY+1;
+
+            if (sizeX < 1 || sizeY < 1)
+            {
+                Debug.Log("Failed to trim texture!");
+                return textureData;
+            }
+
+            var newTexture = new MKTextureData(sizeX,sizeY);
+
+            for (int ix = 0; ix < sizeX; ix++)
+            {
+                for (int iy = 0; iy < sizeY; iy++)
+                {
+                    var pixel = textureData.Get(minX + ix, minY + iy);
+
+                    newTexture.Set(ix,iy, pixel);
+                }
+            }
+
+            return newTexture;
+        }
+
+        public static int GetSize(float w, float h)
+        {
+            var maxS = Math.Max(w, h);
+            return (int)(maxS * 1.3f);
+        }
+
+        public static MKTextureData GetSpriteDataForRot(Sprite sprite)
         {
             var source = sprite.texture;
-            var ppu = sprite.pixelsPerUnit;
 
             var originPx = sprite.rect.min;
             var pixelSize = sprite.rect.size;
 
-            var maxS = Math.Max(pixelSize.x, pixelSize.y);
-            size = (int)(maxS*1.3f);
-            //new Color32[size * size]
-            MKTextureData textureData = new MKTextureData(size, size);
+            var textureData = new MKTextureData((int)pixelSize.x,(int) pixelSize.y);
 
-            var offset = new Vector2(size / 2 - pixelSize.x / 2, size / 2 - pixelSize.y / 2);
-
-            for (int i = 0; i < textureData.Length; i++)
+            for (var i = 0; i < textureData.Length; i++)
             {
                 textureData.Data[i] = Color.clear;
             }
 
             var sourceData = source.GetPixels32();
 
-            for (int i = 0; i < pixelSize.x; i++)
+            for (var i = 0; i < pixelSize.x; i++)
             {
-                for (int j = 0; j < pixelSize.y; j++)
+                for (var j = 0; j < pixelSize.y; j++)
+                {
+                    var sX = (int)(originPx.x + i);
+                    var sY = (int)(originPx.y + j);
+
+                    var pixel = GetUnsafe(sourceData, sX, sY, source.width);
+
+                    textureData.SetUnsafe(i, j, pixel);
+                }
+            }
+
+            return textureData;
+        }
+
+        public static MKTextureData ResizeUpCanvas(MKTextureData textureData, int newSize)
+        {
+            var offset = new Vector2(newSize / 2 - textureData.Width / 2, newSize / 2 - textureData.Height / 2);
+
+            var result = new MKTextureData(newSize, newSize);
+
+            for (var sX = 0; sX < textureData.Width; sX++)
+            {
+                for (var sY = 0; sY < textureData.Height; sY++)
+                {
+                    var dX = (int)(sX + offset.x);
+                    var dY = (int)(sY + offset.y);
+
+                    var pixel = textureData.GetUnsafe(sX, sY);
+
+                    result.Set(dX, dY, pixel);
+                }
+            }
+
+            return result;
+        }
+
+        public static MKTextureData GetSpriteDataForRot(Sprite sprite, out int size)
+        {
+            var source = sprite.texture;
+
+            var originPx = sprite.rect.min;
+            var pixelSize = sprite.rect.size;
+
+            size = GetSize(pixelSize.x, pixelSize.y);
+            var textureData = new MKTextureData(size, size);
+
+            var offset = new Vector2(size / 2 - pixelSize.x / 2, size / 2 - pixelSize.y / 2);
+
+            for (var i = 0; i < textureData.Length; i++)
+            {
+                textureData.Data[i] = Color.clear;
+            }
+
+            var sourceData = source.GetPixels32();
+
+            for (var i = 0; i < pixelSize.x; i++)
+            {
+                for (var j = 0; j < pixelSize.y; j++)
                 {
                     var sX = (int)(originPx.x + i);
                     var sY = (int)(originPx.y + j);
@@ -96,36 +203,32 @@ namespace MaximovInk
 
         public static void Rotate(MKTextureData textureData, float angle)
         {
-            int oldX;
-            int oldY;
-
             var width = textureData.Width;
             var height = textureData.Height;
 
             MKTextureData transformedPixels = new MKTextureData(textureData.Width, textureData.Height);
 
-            float phi = Mathf.Deg2Rad * angle;
+            var phi = Mathf.Deg2Rad * angle;
 
-            for (int newY = 0; newY < height; newY++)
+            for (var newY = 0; newY < height; newY++)
             {
-                for (int newX = 0; newX < width; newX++)
+                for (var newX = 0; newX < width; newX++)
                 {
                     transformedPixels.Set(newX, newY, new Color32(0, 0, 0, 0));
-                    int newXNormToCenter = newX - width / 2;
-                    int newYNormToCenter = newY - height / 2;
-                    oldX = (int)(Mathf.Cos(phi) * newXNormToCenter + Mathf.Sin(phi) * newYNormToCenter + width / 2);
-                    oldY = (int)(-Mathf.Sin(phi) * newXNormToCenter + Mathf.Cos(phi) * newYNormToCenter + height / 2);
-                    bool InsideImageBounds = (oldX > -1) && (oldX < width) && (oldY > -1) && (oldY < height);
+                    var newXNormToCenter = newX - width / 2;
+                    var newYNormToCenter = newY - height / 2;
+                    var oldX = (int)(Mathf.Cos(phi) * newXNormToCenter + Mathf.Sin(phi) * newYNormToCenter + width / 2);
+                    var oldY = (int)(-Mathf.Sin(phi) * newXNormToCenter + Mathf.Cos(phi) * newYNormToCenter + height / 2);
+                    var insideImageBounds = (oldX > -1) && (oldX < width) && (oldY > -1) && (oldY < height);
 
-                    if (InsideImageBounds)
-                    {
-                        var pixel = textureData.GetUnsafe(oldX, oldY);
-                        transformedPixels.SetUnsafe(newX, newY, pixel);
-                    }
+                    if (!insideImageBounds) continue;
+
+                    var pixel = textureData.GetUnsafe(oldX, oldY);
+                    transformedPixels.SetUnsafe(newX, newY, pixel);
                 }
             }
 
-            for (int i = 0; i < transformedPixels.Length; i++)
+            for (var i = 0; i < transformedPixels.Length; i++)
             {
                 textureData.Data[i] = transformedPixels.Data[i];
             }
@@ -156,7 +259,7 @@ namespace MaximovInk
             }
         }
 
-        public static MKTextureData ScaleDown(MKTextureData textureData, int newWidth, int newHeight)
+        public static MKTextureData ScaleDown(MKTextureData textureData, int newWidth, int newHeight, float blend)
         {
             MKTextureData transformedPixels = new MKTextureData(newWidth, newHeight);
 
@@ -181,7 +284,7 @@ namespace MaximovInk
                     {
                         for (int iy = 0; iy < stepY; iy++)
                         {
-                            pixel = Color.Lerp(pixel, textureData.Get(srcX + ix, srcY + iy), 0.5f);
+                            pixel = Color.Lerp(pixel, textureData.Get(srcX + ix, srcY + iy), blend);
                         }
                     }
 
@@ -192,19 +295,19 @@ namespace MaximovInk
 
             return transformedPixels;
         }
+     
+        public static void InsertToTexture(MKTextureData canvas, MKTextureData textureData, int xOffset, int yOffset)
+         {
+             for (int i = 0; i < textureData.Width; i++)
+             {
+                 for (int j = 0; j < textureData.Height; j++)
+                 {
+                     var pixel = textureData.GetUnsafe(i, j);
 
-        public static void InsertToTexture(MKTextureData canvas, MKTextureData textureData, int xOffset, int yOffset, int width, int height, int cWidth, int cHeight)
-        {
-            for (int i = 0; i < width; i++)
-            {
-                for (int j = 0; j < height; j++)
-                {
-                    var pixel = textureData.GetUnsafe(i, j);
-
-                    canvas.SetUnsafe(i + xOffset, j + yOffset, pixel);
-                }
-            }
-        }
+                     canvas.SetUnsafe(i + xOffset, j + yOffset, pixel);
+                 }
+             }
+         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool AreColorsSame(Color aColor, Color bColor)

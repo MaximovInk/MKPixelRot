@@ -15,8 +15,10 @@ public class MKPixelRotSpriteEditor : Editor
     {
         var sprite  = target as MKPixelRotSprite;
 
+
         if(GUILayout.Button("Make cache"))
         {
+            sprite.IsRealtime = false;
             sprite.GenerateRotationSheet();
         }
 
@@ -25,14 +27,14 @@ public class MKPixelRotSpriteEditor : Editor
             sprite.StopAllThreads();
         }
 
-        if (sprite.IsBusy())
+        if (sprite.IsBusy() && !sprite.IsRealtime)
         {
             GUILayout.Space(10);
             ProgressBar(sprite.CachingState, "Generation..");
             GUILayout.Space(10);
             GUILayout.Space(10);
 
-            if (sprite.CachingState < 0.9f) {
+            if (sprite.CachingState < 0.999f) {
                 Repaint();
                
             }
@@ -76,7 +78,21 @@ public class MKPixelRotSpriteEditor : Editor
 
         GUILayout.Space(10);
 
+        EditorGUI.BeginChangeCheck();
+
         base.OnInspectorGUI();
+
+
+
+        if (GUILayout.Button("Unlink targets"))
+        {
+            sprite.Unlink();
+        }
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            sprite.UpdateTransform();
+        }
     }
 
 

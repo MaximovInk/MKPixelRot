@@ -1,5 +1,4 @@
 ﻿using System.Threading;
-using UnityEngine;
 
 namespace MaximovInk
 {
@@ -21,6 +20,15 @@ namespace MaximovInk
 
         private void RealtimeRotateThread(int size)
         {
+            if (TrimSource)
+            {
+                _realtimeData.Input = MKTextureUtilites.Trim(_realtimeData.Input);
+                size = MKTextureUtilites.GetSize(
+                    _realtimeData.Input.Width, 
+                    _realtimeData.Input.Height);
+                _realtimeData.Input = MKTextureUtilites.ResizeUpCanvas(_realtimeData.Input, size);
+            }
+
             var textureData = GetRotate(_realtimeData.Input, size, _angle);
 
             _realtimeData.SpriteSize = size;
@@ -32,31 +40,30 @@ namespace MaximovInk
         {
             if (_realtimeIsDirty) return;
 
-            if (_realtimeThread == null || !_realtimeThread.IsAlive)
-            {
-                _realtimeData.Input = MKTextureUtilites.GetSpriteDataForRot(_sprite, out var size);
+            if (_realtimeThread is { IsAlive: true }) return;
 
-                _realtimeThread = new Thread(() => RealtimeRotateThread(size));
-                _realtimeThread.Start();
-            }
+            _realtimeData.Input = MKTextureUtilites.GetSpriteDataForRot(_sprite, out var size);
+
+            _realtimeThread = new Thread(() => RealtimeRotateThread(size));
+            _realtimeThread.Start();
 
         }
 
         private void UpdateRealtime()
         {
-            if (_realtimeIsDirty)
-            {
-                _realtimeIsDirty = false;
+            if (!_realtimeIsDirty) return;
 
-                _finalTex = MakeTexture(_realtimeData.Output.Width, _realtimeData.Output.Height);
-                _finalTex.SetPixels32(_realtimeData.Output.Data);
-                _finalTex.Apply();
+            _realtimeIsDirty = false;
 
-                _finalSprite = MakeSprite(_finalTex, 0,0, _finalTex.width, _finalTex.height, $"{_sprite.name}_realtime {_angle}deg");
+            _finalTex = MakeTexture(_realtimeData.Output.Width, _realtimeData.Output.Height);
+            _finalTex.SetPixels32(_realtimeData.Output.Data);
+            _finalTex.Apply();
 
-                _target.sprite = _finalSprite;
+            _finalSprite = MakeSprite(_finalTex, 0,0, _finalTex.width, _finalTex.height, $"{_sprite.name}_realtime {_angle}deg", _angle);
 
-            }
+            _target.sprite = _finalSprite;
+
+
         }
     }
 }
