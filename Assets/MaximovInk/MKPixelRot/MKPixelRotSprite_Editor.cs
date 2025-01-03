@@ -45,7 +45,7 @@ namespace MaximovInk
 #if UNITY_EDITOR
                 SetTextureReadable(AssetDatabase.GetAssetPath(texture));
 #else
-                Debug.LogError($"Texture is not readable! {source.name}");
+                Debug.LogError($"Texture is not readable! {texture.name}");
                 return;
 #endif
             }

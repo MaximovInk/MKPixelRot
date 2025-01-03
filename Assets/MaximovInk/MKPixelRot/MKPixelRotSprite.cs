@@ -1,6 +1,5 @@
-using System;
+
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
 
 namespace MaximovInk
 {
@@ -53,6 +52,8 @@ namespace MaximovInk
 
         [Range(0,1)]
         [SerializeField] private float _blendDownScale = 0.9f;
+
+        [SerializeField] private bool _externalContainer;
 
         [Header("Attached to this sprite")]
         [SerializeField]
@@ -147,7 +148,12 @@ namespace MaximovInk
 
         private int CalculateAngle()
         {
-            return CalculateAngle(transform.rotation.eulerAngles.z);
+            var angle =  CalculateAngle(transform.rotation.eulerAngles.z);
+
+            if(transform.lossyScale.x < 0)
+                angle = -angle;
+
+            return angle;
         }
 
         private int CalculateAngle(float angle)
@@ -207,12 +213,13 @@ namespace MaximovInk
 
         private void Validate()
         {
-
+            var parent = _externalContainer ? MKPixelRotContainer.Instance.transform : transform;
 
             if (_rotationTransform == null)
             {
                 _rotationTransform = new GameObject($"{gameObject.name}_Transform_PixelRot").transform;
-                _rotationTransform.transform.SetParent(MKPixelRotContainer.Instance.transform);
+
+                _rotationTransform.transform.SetParent(parent);
                 _rotationTransform.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
             }
@@ -220,7 +227,7 @@ namespace MaximovInk
             if (_target == null)
             {
                 var spriteRenderer = new GameObject($"{gameObject.name}_Graphics_PixelRot").AddComponent<SpriteRenderer>();
-                spriteRenderer.transform.SetParent(MKPixelRotContainer.Instance.transform);
+                spriteRenderer.transform.SetParent(parent);
                 spriteRenderer.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
 
                 _target = spriteRenderer;
@@ -323,7 +330,9 @@ namespace MaximovInk
         {
             var texture = new Texture2D(width, height)
             {
+#if UNITY_EDITOR
                 alphaIsTransparency = true,
+#endif
                 filterMode = FilterMode.Point
             };
 

@@ -1,4 +1,5 @@
 ﻿using System.Threading;
+using UnityEngine;
 
 namespace MaximovInk
 {
@@ -41,6 +42,8 @@ namespace MaximovInk
             if (_realtimeIsDirty) return;
 
             if (_realtimeThread is { IsAlive: true }) return;
+
+            ValidateTexture(_sprite.texture);
 
             _realtimeData.Input = MKTextureUtilites.GetSpriteDataForRot(_sprite, out var size);
 
