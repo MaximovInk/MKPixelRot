@@ -19,7 +19,7 @@ First attempt to make pixel rotation script. Perfomance not good, but i will opt
 - [x] Threaded generation
 - [x] Using arrays insted of texture2d
 - [ ] Cache all textures in one scriptableObject?
-- [ ] Cache texture aligment (insted one row, make quad atlas)
+- [x] Cache texture aligment (insted one row, make quad atlas)
       
 ## How it works
 - Script calculates all angles
